@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<package>
+  <name>deu_car</name>
+  <version>0.0.0</version>
+  <description>The followbot package</description>
+  <maintainer email="31337.persona@gmail.com">Dong-Young Kim</maintainer>
+  <license>BSD</license>
+  <url type="repository">https://github.com/pers0n4/ros_deu.git</url>
+  <author email="31337.persona@gmail.com">Dong-Young Kim</author>
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>rospy</build_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>gazebo_ros</run_depend>
+  <export>
+    <gazebo_ros gazebo_media_path="${prefix}" />
+  </export>
+</package>
