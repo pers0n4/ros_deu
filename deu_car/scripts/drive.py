@@ -22,9 +22,13 @@ class Drive:
             "/stop_line", Bool, self.stop_line_callback
         )
         self.stop_line_pub = rospy.Publisher("/stop_line", Bool, queue_size=1)
+        self.bar_pub = rospy.Publisher(
+            "camera/rgb/image_raw/p2_bar", Image, queue_size=1
+        )
         self.twist = Twist()
         self.velocity = 0.0
         self.is_stop_line_detected = False
+        self.is_stop_line_passable = False
 
     def image_callback(self, msg):
         image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
@@ -32,6 +36,8 @@ class Drive:
 
         try:
             hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+            # stop line
             lower_white = np.array([0, 0, 200])
             upper_white = np.array([255, 255, 255])
             mask = cv2.inRange(hsv, lower_white, upper_white)
@@ -51,20 +57,59 @@ class Drive:
 
             if contours:
                 area = max(map(lambda contour: cv2.contourArea(contour), contours))
-                rospy.loginfo(area)
+                # rospy.loginfo(area)
 
-                if self.is_stop_line_detected:
-                    return
+                # 정지선이 감지된 경우
+                if area > 10000:
+                    self.is_stop_line_detected = True
+                    if self.is_stop_line_passable:
+                        # self.stop_line_pub.publish(False)
+                        rospy.loginfo("RESUME DRIVING")
+                        self.set_velocity(1.0)
+                    else:
+                        rospy.loginfo("STOP LINE DETECTED")
+                        # self.stop_line_pub.publish(True)
+                        rospy.loginfo("PAUSE DRIVING")
+                        self.set_velocity(0.0)
+                        rospy.sleep(3.0)
+                        rospy.loginfo("STOP LINE PASSABLE")
+                        self.is_stop_line_passable = True
+                        return
+                else:
+                    self.is_stop_line_passable = False
+            else:
+                self.is_stop_line_detected = False
+                self.is_stop_line_passable = False
 
-                if 10000 < area:
-                    rospy.loginfo("=== STOP LINE DETECTED ===")
-                    self.stop_line_pub.publish(True)
+            # blocking bar
+            lower_red = np.array([0, 0, 90])
+            upper_red = np.array([5, 5, 110])
+            mask = cv2.inRange(hsv, lower_red, upper_red)
+
+            cv2.imshow("mask", mask)
+
+            h, w, _ = image.shape
+
+            mask[0:180, 0:w] = 0
+            mask[240:h, 0:w] = 0
+            mask[0:h, 0:250] = 0
+
+            M = cv2.moments(mask)
+            if M["m00"] > 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                cv2.circle(image, (cx, cy), 10, (0, 0, 255), -1)
+                self.set_velocity(0.0)
+                rospy.loginfo("detecting bar...")
+                return
+            bar_image_msg = self.bridge.cv2_to_imgmsg(image, "bgr8")
+            self.bar_pub.publish(bar_image_msg)
 
         except Exception as e:
             print(e)
 
         finally:
-            # cv2.imshow("window", image)
+            cv2.imshow("window", image)
             cv2.waitKey(1)
 
     def mask_color(self, image):
@@ -97,13 +142,14 @@ class Drive:
 
     def stop_line_callback(self, msg):
         self.is_stop_line_detected = msg.data
-        rospy.loginfo("-- PAUSE DRIVING --")
-        self.set_velocity(0.0)
-        rospy.sleep(3)
-        rospy.loginfo("-- RESUME DRIVING --")
-        self.set_velocity(1.0)
-        rospy.sleep(3)
-        self.is_stop_line_detected = False
+        if self.is_stop_line_detected:
+            rospy.loginfo("PAUSE DRIVING")
+            self.set_velocity(0.0)
+            rospy.sleep(3.0)
+            self.is_stop_line_passable = True
+        else:
+            rospy.loginfo("RESUME DRIVING")
+            self.set_velocity(1.0)
 
     def run(self):
         rate = rospy.Rate(10)
