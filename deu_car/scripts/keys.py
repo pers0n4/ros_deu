@@ -10,8 +10,32 @@ from gazebo_msgs.msg import ModelState
 from gazebo_msgs.srv import SetModelState
 
 key_mapping = {
-    "1": {"x": -6.25, "y": 10.5, "z": 0},
-    "2": {"x": -7.4, "y": 10.5, "z": 0},
+    "1": {
+        "position": {
+            "x": -6.17003790544,
+            "y": 10.7793160846,
+            "z": -0.000355128678643,
+        },
+        "orientation": {
+            "x": -0.00483605609891,
+            "y": -0.00486314373011,
+            "z": -0.706681813758,
+            "w": 0.70749825194,
+        },
+    },
+    "2": {
+        "position": {
+            "x": -7.38981545188,
+            "y": 10.7793160846,
+            "z": -0.000355128678643,
+        },
+        "orientation": {
+            "x": -0.00483605609891,
+            "y": -0.00486314373011,
+            "z": -0.706681813758,
+            "w": 0.70749825194,
+        },
+    },
 }
 
 if __name__ == "__main__":
@@ -34,9 +58,13 @@ if __name__ == "__main__":
                 state_msg = ModelState()
                 state_msg.model_name = "mobile_base"
 
-                state_msg.pose.position.x = values["x"]
-                state_msg.pose.position.y = values["y"]
-                state_msg.pose.position.z = values["z"]
+                state_msg.pose.position.x = values["position"]["x"]
+                state_msg.pose.position.y = values["position"]["y"]
+                state_msg.pose.position.z = values["position"]["z"]
+                state_msg.pose.orientation.x = values["orientation"]["x"]
+                state_msg.pose.orientation.y = values["orientation"]["y"]
+                state_msg.pose.orientation.z = values["orientation"]["z"]
+                state_msg.pose.orientation.w = values["orientation"]["w"]
 
                 set_state(state_msg)
 
