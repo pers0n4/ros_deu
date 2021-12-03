@@ -86,7 +86,7 @@ class Drive:
             upper_red = np.array([5, 5, 110])
             mask = cv2.inRange(hsv, lower_red, upper_red)
 
-            cv2.imshow("mask", mask)
+            # cv2.imshow("mask", mask)
 
             h, w, _ = image.shape
 
@@ -104,6 +104,7 @@ class Drive:
                 return
             bar_image_msg = self.bridge.cv2_to_imgmsg(image, "bgr8")
             self.bar_pub.publish(bar_image_msg)
+            self.set_velocity(1.0)
 
         except Exception as e:
             print(e)
