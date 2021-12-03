@@ -37,6 +37,57 @@ class Drive:
         try:
             hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
+            color_image = self.mask_color(hsv)
+            gray_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2GRAY)
+            blur_image = cv2.GaussianBlur(gray_image, (21, 21), 0)
+            edge_image = cv2.Canny(blur_image, threshold1=50, threshold2=80)
+
+            lines = cv2.HoughLinesP(
+                edge_image,
+                rho=1,
+                theta=np.pi / 180,
+                threshold=30,
+                minLineLength=10,
+                maxLineGap=100,
+            )
+
+            detected_lines = np.squeeze(lines)
+
+            slope_degree = (
+                np.arctan2(
+                    detected_lines[:, 1] - detected_lines[:, 3],
+                    detected_lines[:, 0] - detected_lines[:, 2],
+                )
+                * 180
+            ) / np.pi
+
+            detected_lines = detected_lines[np.abs(slope_degree) < 160]
+            slope_degree = slope_degree[np.abs(slope_degree) < 160]
+
+            detected_lines = detected_lines[np.abs(slope_degree) > 95]
+            slope_degree = slope_degree[np.abs(slope_degree) > 95]
+
+            l, r = (
+                detected_lines[(slope_degree > 0), :],
+                detected_lines[(slope_degree < 0), :],
+            )
+
+            # temp = np.zeros(shape=(image.shape[0], image.shape[1], 3), dtype=np.uint8)
+            temp = image.copy()
+            l, r = l[:, None], r[:, None]
+
+            if l is not None:
+                for line in l:
+                    x1, y1, x2, y2 = line[0]
+                    cv2.line(temp, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            if r is not None:
+                for line in r:
+                    x1, y1, x2, y2 = line[0]
+                    cv2.line(temp, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+            self.draw_lines(temp, lines)
+            cv2.imshow("window", temp)
+
             # stop line
             lower_white = np.array([0, 0, 200])
             upper_white = np.array([255, 255, 255])
@@ -110,7 +161,7 @@ class Drive:
             print(e)
 
         finally:
-            cv2.imshow("window", image)
+            # cv2.imshow("window", image)
             cv2.waitKey(1)
 
     def mask_color(self, image):
@@ -131,6 +182,12 @@ class Drive:
         masked_image = cv2.bitwise_and(image, image, mask=mask)
 
         return masked_image
+
+    def draw_lines(self, image, lines, color=[255, 0, 0], thickness=2):
+        for line in lines:
+            for x1, y1, x2, y2 in line:
+                cv2.line(image, (x1, y1), (x2, y2), color, thickness)
+        return cv2.addWeighted(image, 1, image, 1, 0)
 
     def callback(self):
         self.twist.linear.x = self.velocity
